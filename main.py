@@ -1,22 +1,28 @@
-import os
 import logging
+import os
+
+from telegram.error import InvalidToken
 
 from src.bot import Bot
 
-logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.ERROR)
+logging.basicConfig(
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.ERROR
+)
 logger = logging.getLogger(__name__)
 
+_TOKEN = "GSEM_BOT_TOKEN"
 
-def main(TOKEN):
-    bot = Bot(TOKEN)
+
+def main(bot_token):
+    bot = Bot(bot_token)
     bot.build()
     bot.run_polling()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     try:
-        BOT_TOKEN = os.environ.get("GSEM_BOT_TOKEN")
+        BOT_TOKEN = os.environ.get(_TOKEN)
         logger.info("Obtained token successfully")
         main(BOT_TOKEN)
-    except KeyError:
-        logger.error("Error occured while obtaining Bot's token form environment")
+    except InvalidToken:
+        logger.error("Error occurred while obtaining Bot token form environment")

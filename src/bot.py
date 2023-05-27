@@ -2,9 +2,11 @@ import logging
 
 from telegram.ext import ApplicationBuilder, CommandHandler
 
-from src import bot_commands, bot_handlers
+from src.bot_handlers import get_handlers
 
-logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
+logging.basicConfig(
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
+)
 
 
 class Bot:
@@ -16,13 +18,8 @@ class Bot:
         for handler in handlers:
             self.application.add_handler(handler)
 
-    def get_handlers(self):
-        return [
-            CommandHandler(bot_commands.START, bot_handlers.start)
-        ]
-
     def build(self):
-        handlers = self.get_handlers()
+        handlers = get_handlers()
         self.initialize_handlers(handlers)
 
     def run_polling(self):
