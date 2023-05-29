@@ -1,1 +1,2 @@
 START = "start"
+LOGIN = "login"

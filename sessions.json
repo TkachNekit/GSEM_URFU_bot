@@ -1,0 +1,11 @@
+{
+  "token": {
+    "telegram_id": 123,
+    "telegram_username": "test_username",
+    "first_name": "test_f_name",
+    "last_name": "test_l_name",
+    "group": "mo-303",
+    "started_at": "date",
+    "ends_at": "date + 90 min"
+  }
+}

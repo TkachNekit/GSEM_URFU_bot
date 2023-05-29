@@ -15,14 +15,13 @@ _TOKEN = "GSEM_BOT_TOKEN"
 
 def main(bot_token):
     bot = Bot(bot_token)
-    bot.build()
     bot.run_polling()
 
 
 if __name__ == "__main__":
     try:
-        BOT_TOKEN = os.environ.get(_TOKEN)
         logger.info("Obtained token successfully")
+        BOT_TOKEN = os.environ.get(_TOKEN)
         main(BOT_TOKEN)
     except InvalidToken:
         logger.error("Error occurred while obtaining Bot token form environment")

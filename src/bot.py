@@ -1,8 +1,8 @@
 import logging
 
-from telegram.ext import ApplicationBuilder, CommandHandler
+from telegram.ext import ApplicationBuilder
 
-from src.bot_handlers import get_handlers
+from src.handlers.bot_handlers import get_handlers
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
@@ -10,17 +10,15 @@ logging.basicConfig(
 
 
 class Bot:
-    def __init__(self, TOKEN):
-        self.TOKEN = TOKEN
-        self.application = ApplicationBuilder().token(TOKEN).build()
+    def __init__(self, token):
+        self.TOKEN = token
+        self.application = ApplicationBuilder().token(token).build()
+        handlers = get_handlers()
+        self._initialize_handlers(handlers)
 
-    def initialize_handlers(self, handlers):
+    def _initialize_handlers(self, handlers):
         for handler in handlers:
             self.application.add_handler(handler)
-
-    def build(self):
-        handlers = get_handlers()
-        self.initialize_handlers(handlers)
 
     def run_polling(self):
         logging.info("Starting bot in polling mode")
