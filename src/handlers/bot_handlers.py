@@ -14,7 +14,7 @@ from src.services.auth_services import (
     upload_tokens_to_db, validate_token, logout_user, get_current_token_for_user,
 )
 from src.services.session_services import create_new_session, upload_session_to_db, mark_token_as_used, is_token_used, \
-    is_user_logged_in
+    is_user_logged_in, mark_progress
 from src.services.task_tester_service import run_test
 from src.utils import bot_commands
 from src.utils.exceptions import (
@@ -132,7 +132,7 @@ async def py_file_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
         # тестирование файла
         result = await run_test(filepath, update.message.document.file_name)
-
+        await mark_progress(token, update.message.document.file_name)
         return result + "Это корректный вывод, задача зачтена 👍"
     except WrongPythonFileName:
         return "[Ошибка отправки]    Неправильное имя файла    Необходимо: task1, или task2, или task3..."

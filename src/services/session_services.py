@@ -79,7 +79,7 @@ async def mark_token_as_used(token: str, telegram_username: str) -> None:
                   )
 
 
-async def is_user_logged_in(username: str):
+async def is_user_logged_in(username: str) -> bool:
     with open(SESSION_FILE, "r", encoding="utf-8") as session_file:
         session_list = json.load(session_file)["sessions"]
         for session in session_list:
@@ -87,3 +87,19 @@ async def is_user_logged_in(username: str):
             if session[token]["telegram_username"] == username:
                 return True
     return False
+
+
+async def mark_progress(token: str, filename: str):
+    with open(SESSION_FILE, "r", encoding='utf-8') as session_file:
+        data = json.load(session_file)
+        for session in data["sessions"]:
+            if token in session.keys():
+                session[token]["progress"][filename] = True
+    with open(SESSION_FILE, "w", encoding='utf-8') as session_file:
+        json.dump(data,
+                  session_file,
+                  sort_keys=False,
+                  indent=4,
+                  ensure_ascii=False,
+                  separators=(",", ": "),
+                  )

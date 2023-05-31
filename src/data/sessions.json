@@ -10,7 +10,19 @@
                 "started_at": "2023-05-30",
                 "deadline": "2023-06-30 00:00:00",
                 "is_in_progress": true,
-                "progress": {}
+                "progress": {
+                    "task1.py": true,
+                    "task2.py": true,
+                    "task3.py": true,
+                    "task4.py": true,
+                    "task5.py": true,
+                    "task6.py": true,
+                    "task7.py": true,
+                    "task8.py": true,
+                    "task9.py": true,
+                    "task10.py": true,
+                    "task11.py": true
+                }
             }
         }
     ]
