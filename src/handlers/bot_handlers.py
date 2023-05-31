@@ -2,7 +2,6 @@ import datetime
 import functools
 import logging
 import os
-import pprint
 
 from telegram import Update
 from telegram.ext import CommandHandler, ContextTypes, MessageHandler, filters
@@ -12,10 +11,11 @@ from src.services.auth_services import (
     download_file,
     generate_tokens_for_users,
     is_admin_request,
-    upload_tokens_to_db, validate_token, logout_user,
+    upload_tokens_to_db, validate_token, logout_user, get_current_token_for_user,
 )
 from src.services.session_services import create_new_session, upload_session_to_db, mark_token_as_used, is_token_used, \
     is_user_logged_in
+from src.services.task_tester_service import run_test
 from src.utils import bot_commands
 from src.utils.exceptions import (
     AdminAccessDenied,
@@ -24,7 +24,8 @@ from src.utils.exceptions import (
     InvalidSessionToken,
     NoArgumentsInLogin,
     TooManyArgumentsInLogin,
-    WrongDateFormatError, AlreadyLoggedInAccount, LogoutError, WrongPythonFileName,
+    WrongDateFormatError, AlreadyLoggedInAccount, LogoutError, WrongPythonFileName, TokenNotFoundError,
+    WrongAnswerError, PepTestError,
 )
 from src.utils.formaters import format_dict_to_string
 from src.utils.validators import validate_args, validate_datetime_args, validate_filename
@@ -42,8 +43,8 @@ def get_handlers() -> list:
     return [
         CommandHandler(bot_commands.LOGIN, login),
         CommandHandler(bot_commands.LOGOUT, logout),
-        MessageHandler(filters.Document.PY, py_downloader),
-        MessageHandler(filters.Document.TXT, downloader),
+        MessageHandler(filters.Document.PY, py_file_handler),
+        MessageHandler(filters.Document.TXT, students_downloader),
     ]
 
 
@@ -87,7 +88,6 @@ async def login(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
 @_response
 async def logout(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
     return "Ничего не произошло"
-    pass
     # try:
     #     if not await is_user_logged_in(update.effective_user.username):
     #         raise LogoutError
@@ -99,7 +99,7 @@ async def logout(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
 
 
 @_response
-async def downloader(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
+async def students_downloader(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
     try:
         if not await is_admin_request(update.effective_user.username, ADMIN_USERNAMES):
             raise AdminAccessDenied
@@ -124,22 +124,23 @@ async def downloader(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
 
 
 @_response
-async def py_downloader(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
+async def py_file_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
     try:
-        # проверка названия файла
-        print(update.message.document.file_name)
         await validate_filename(update.message.document.file_name)
-        file = await context.bot.get_file(update.message.document)
-        # получение токена юзера
-        # token = await get_current_token_for_user(update.effective_user.username)
-        # скачивание ру файла в директорию с токеном
-        # file_path = f"src/data/user_exercises{update.message.document.file_name}"
-        # await download_file(update, context, file_path)
+        token = await get_current_token_for_user(update.effective_user.username)
+        filepath = await download_file(update, context, update.message.document.file_name, token)
 
         # тестирование файла
-        # await file.download_to_drive(caption{token}")
-        return f"{update.message.document.file_name}"
+        result = await run_test(filepath, update.message.document.file_name)
+
+        return result + "Это корректный вывод, задача зачтена 👍"
     except WrongPythonFileName:
         return "[Ошибка отправки]    Неправильное имя файла    Необходимо: task1, или task2, или task3..."
     except TooManyArgumentsInLogin and NoArgumentsInLogin:
-        return "[Ошибка]    Был дан неверный заголовок      Необходимо: task1, или task2, или task3..."
+        return "[Ошибка отправки]    Был дан неверный заголовок      Необходимо: task1, или task2, или task3..."
+    except TokenNotFoundError:
+        return "[Ошибка]    Невозможно найти токен по вашему профилю"
+    except WrongAnswerError:
+        return "[Неверный ответ]    Программа выводит неверные данные"
+    except PepTestError:
+        return "[Неверный ответ]    Программа не прошла PEP8 валидацию"

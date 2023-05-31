@@ -52,3 +52,18 @@ class LogoutError(Exception):
 class WrongPythonFileName(Exception):
     """Raised when user gives a python file with a wrong name"""
     pass
+
+
+class TokenNotFoundError(Exception):
+    """Raised when username was given which doesn't have any active tokens"""
+    pass
+
+
+class WrongAnswerError(Exception):
+    """Raised when user task failed test due to wrong answer"""
+    pass
+
+
+class PepTestError(Exception):
+    """Raised when user task failed test due to pep8 validation"""
+    pass
