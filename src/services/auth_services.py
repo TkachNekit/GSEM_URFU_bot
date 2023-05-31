@@ -5,16 +5,9 @@ from datetime import datetime
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from src.entities.session import Session
-from src.entities.user import User
-from src.utils.exceptions import AlreadyUsedToken, InvalidSessionToken
 
-
-async def initialize_session(token: str, tg_id: int, tg_username: str) -> None:
-    await _validate_token(token)
-    user = await _get_user_from_token(token)
-    session = Session(token, user, tg_id, tg_username)
-    await _upload_session_to_db(session)
+TOKEN_FILE = "src/data/tokens.json"
+SESSION_FILE = "src/data/sessions.json"
 
 
 async def generate_tokens_for_users(filename: str, date: datetime.date) -> dict:
@@ -30,13 +23,15 @@ async def generate_tokens_for_users(filename: str, date: datetime.date) -> dict:
             temp_dic["first_name"] = args[1]
             temp_dic["group"] = args[2]
             temp_dic["deadline"] = str(date)
+            temp_dic["is_in_use"] = False
+            temp_dic["telegram_username"] = None
             token = str(uuid.uuid4())
             token_dict[token] = temp_dic
     return token_dict
 
 
 async def upload_tokens_to_db(token_dict: dict) -> None:
-    with open("tokens.json", "w", encoding="utf-8") as token_file:
+    with open(TOKEN_FILE, "w", encoding="utf-8") as token_file:
         json.dump(
             token_dict,
             token_file,
@@ -48,7 +43,7 @@ async def upload_tokens_to_db(token_dict: dict) -> None:
 
 
 async def download_file(
-    update: Update, context: ContextTypes.DEFAULT_TYPE, filename: str
+        update: Update, context: ContextTypes.DEFAULT_TYPE, filename: str
 ) -> None:
     file = await context.bot.get_file(update.message.document)
     await file.download_to_drive(filename)
@@ -58,43 +53,21 @@ async def is_admin_request(username: str, admin_list: [str]) -> bool:
     return username in admin_list
 
 
-async def _validate_token(token: str) -> None:
-    try:
-        with open("tokens.json", "r", encoding="utf-8") as token_file:
-            data = json.load(token_file)
-            token_data = data[token]
-            if not token_data["is_fresh"]:
-                raise AlreadyUsedToken
-    except KeyError:
-        raise InvalidSessionToken
+async def validate_token(token: str) -> bool:
+    with open(TOKEN_FILE, "r", encoding="utf-8") as token_file:
+        data = json.load(token_file)
+        return not (token in data.keys())
 
 
-async def _get_user_from_token(token: str) -> User:
-    try:
-        with open("tokens.json", encoding="utf-8") as token_file:
-            data = json.load(token_file)
-            token_data = data[token]
-            user = User(
-                token_data["first_name"], token_data["last_name"], token_data["group"]
-            )
-            return user
-    except KeyError:
-        raise InvalidSessionToken
-
-
-async def _upload_session_to_db(session: Session) -> None:
+async def logout_user(username: str):
     pass
-
-
-#     data = {
-#         session.token: {
-#             "telegram_id": session.telegram_id,
-#             "telegram_username": session.telegram_username,
-#             "first_name": session.user.first_name,
-#             "last_name": session.user.last_name,
-#             "group": session.user.group,
-#             "started_at": session.started_at,
-#             "ends_at": session.ends_at
-#         }}
-#     # try:
-#     # with open("sessions.json", "w", encoding="utf-8") as session_file:
+    # user_token = None
+    #
+    # with open(SESSION_FILE, "r", encoding="utf-8") as session_file:
+    #     session_data = json.load(session_file)
+    #     sessions_list = session_data["sessions"]
+    #     async for session in sessions_list:
+    #         token = list(session.keys())[0]
+    #         if session[token]["telegram_username"] == username and session[token]["is_in_progress"]:
+    #             session[token]["is_in_progress"] = False
+    #     se

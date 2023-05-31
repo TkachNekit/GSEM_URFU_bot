@@ -36,3 +36,19 @@ class WrongDateFormatError(Exception):
 
 class InvalidDateError(Exception):
     """Raised when user gives date which is not in the future"""
+    pass
+
+
+class AlreadyLoggedInAccount(Exception):
+    """Raised when user tries to log in few times"""
+    pass
+
+
+class LogoutError(Exception):
+    """Raised when user tries to log out when he is not logged in"""
+    pass
+
+
+class WrongPythonFileName(Exception):
+    """Raised when user gives a python file with a wrong name"""
+    pass

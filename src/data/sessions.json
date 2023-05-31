@@ -1,0 +1,17 @@
+{
+    "sessions": [
+        {
+            "11bfa212-4217-48f8-9a77-8d7b237139bc": {
+                "first_name": "Никита",
+                "last_name": "Ткаченко",
+                "group": "МО-201",
+                "telegram_id": 410946677,
+                "telegram_username": "tkach_nikita",
+                "started_at": "2023-05-30",
+                "deadline": "2023-06-30 00:00:00",
+                "is_in_progress": true,
+                "progress": {}
+            }
+        }
+    ]
+}
