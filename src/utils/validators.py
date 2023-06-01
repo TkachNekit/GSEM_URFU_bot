@@ -5,13 +5,14 @@ from src.utils.exceptions import (
     InvalidDateError,
     NoArgumentsInLogin,
     TooManyArgumentsInLogin,
-    WrongDateFormatError, WrongPythonFileName,
+    WrongDateFormatError,
+    WrongPythonFileName,
 )
 
-EXERCISE_FILENAME_PATTERN = "^task\d+\.py$"
+EXERCISE_FILENAME_PATTERN = "^task\\d+\\.py$"
 
 
-async def validate_args(args) -> None:
+async def validate_token_args(args) -> None:
     if len(args) > 1:
         raise TooManyArgumentsInLogin
     elif len(args) < 1:

@@ -6,11 +6,16 @@ from datetime import datetime
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from src.utils.exceptions import TokenNotFoundError
-
-TOKEN_FILE = "src/data/tokens.json"
-SESSION_FILE = "src/data/sessions.json"
-TASK_FILEPATH = "src/data/users_exercises/"
+from src.services.session_services import (
+    activate_session,
+    create_new_session,
+    get_current_token_for_user,
+    is_user_logged_in,
+    mark_token_as_used,
+    upload_session_to_db,
+)
+from src.utils.exceptions import NoActiveSessionError, TokenNotFoundError
+from src.utils.namings import SESSION_FILE, TASK_FILEPATH, TOKEN_FILE
 
 
 async def generate_tokens_for_users(filename: str, date: datetime.date) -> dict:
@@ -55,7 +60,7 @@ async def create_directory(path) -> None:
 
 
 async def download_file(
-        update: Update, context: ContextTypes.DEFAULT_TYPE, filename: str, token: str
+    update: Update, context: ContextTypes.DEFAULT_TYPE, filename: str, token: str
 ) -> str:
     path = TASK_FILEPATH
     file = await context.bot.get_file(update.message.document)
@@ -73,34 +78,47 @@ async def is_admin_request(username: str, admin_list: [str]) -> bool:
     return username in admin_list
 
 
-async def validate_token(token: str) -> bool:
-    with open(TOKEN_FILE, "r", encoding="utf-8") as token_file:
-        data = json.load(token_file)
-        return not (token in data.keys())
-
-
-async def get_current_token_for_user(username: str) -> str:
-    output_token = None
+async def deactivate_session(username: str) -> None:
+    if not await is_user_logged_in(username):
+        raise NoActiveSessionError
+    token = await get_current_token_for_user(username)
     with open(SESSION_FILE, "r", encoding="utf-8") as session_file:
-        data = json.load(session_file)
-        for session in data["sessions"]:
-            token = list(session.keys())[0]
-            if session[token]["telegram_username"] == username and session[token]["is_in_progress"]:
-                output_token = token
-    if not output_token:
-        raise TokenNotFoundError
-    return output_token
+        session_data = json.load(session_file)
+        for session in session_data["sessions"]:
+            if token in session.keys():
+                session[token]["is_in_progress"] = False
+                session[token]["telegram_username"] = None
+                session[token]["telegram_id"] = None
+    with open(SESSION_FILE, "w", encoding="utf-8") as session_file:
+        json.dump(
+            session_data,
+            session_file,
+            sort_keys=False,
+            indent=4,
+            ensure_ascii=False,
+            separators=(",", ": "),
+        )
+    with open(TOKEN_FILE, "r", encoding="utf-8") as token_file:
+        token_data = json.load(token_file)
+        token_data[token]["is_in_use"] = False
+        token_data[token]["telegram_username"] = None
+    with open(TOKEN_FILE, "w", encoding="utf-8") as token_file:
+        json.dump(
+            token_data,
+            token_file,
+            sort_keys=False,
+            indent=4,
+            ensure_ascii=False,
+            separators=(",", ": "),
+        )
 
 
-async def logout_user(username: str):
-    pass
-    # user_token = None
-    #
-    # with open(SESSION_FILE, "r", encoding="utf-8") as session_file:
-    #     session_data = json.load(session_file)
-    #     sessions_list = session_data["sessions"]
-    #     async for session in sessions_list:
-    #         token = list(session.keys())[0]
-    #         if session[token]["telegram_username"] == username and session[token]["is_in_progress"]:
-    #             session[token]["is_in_progress"] = False
-    #     se
+async def log_in_new_user(token: str, username: str, tg_id: int):
+    session = await create_new_session(token, username, tg_id)
+    await upload_session_to_db(session)
+    await mark_token_as_used(token, username)
+
+
+async def log_in_user(token: str, username: str, tg_id: int):
+    await mark_token_as_used(token, username)
+    await activate_session(token, username, tg_id)

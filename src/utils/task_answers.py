@@ -13,5 +13,5 @@ answer_bank_account["task11"] = "8\r\n"
 
 
 async def get_task_answer(task_file: str):
-    task_number = task_file.split('.')[0]
+    task_number = task_file.split(".")[0]
     return answer_bank_account[task_number]

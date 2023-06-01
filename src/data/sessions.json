@@ -5,11 +5,11 @@
                 "first_name": "Никита",
                 "last_name": "Ткаченко",
                 "group": "МО-201",
-                "telegram_id": 410946677,
-                "telegram_username": "tkach_nikita",
+                "telegram_id": null,
+                "telegram_username": null,
                 "started_at": "2023-05-30",
                 "deadline": "2023-06-30 00:00:00",
-                "is_in_progress": true,
+                "is_in_progress": false,
                 "progress": {
                     "task1.py": true,
                     "task2.py": true,
@@ -23,6 +23,19 @@
                     "task10.py": true,
                     "task11.py": true
                 }
+            }
+        },
+        {
+            "8fef0b5f-38be-41b1-b353-ed5494b2a36b": {
+                "first_name": "Кадочников",
+                "last_name": "Михаил",
+                "group": "МО-201",
+                "telegram_id": null,
+                "telegram_username": null,
+                "started_at": "2023-06-01",
+                "deadline": "2023-06-30 00:00:00",
+                "is_in_progress": false,
+                "progress": {}
             }
         }
     ]
