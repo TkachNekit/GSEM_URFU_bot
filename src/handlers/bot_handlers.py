@@ -2,32 +2,49 @@ import datetime
 import functools
 import logging
 import os
-import pprint
 
 from telegram import Update
 from telegram.ext import CommandHandler, ContextTypes, MessageHandler, filters
 
 from src.services import telegram_services
 from src.services.auth_services import (
+    deactivate_session,
     download_file,
     generate_tokens_for_users,
     is_admin_request,
-    upload_tokens_to_db, validate_token, logout_user,
+    log_in_new_user,
+    log_in_user,
+    upload_tokens_to_db,
 )
-from src.services.session_services import create_new_session, upload_session_to_db, mark_token_as_used, is_token_used, \
-    is_user_logged_in
+from src.services.session_services import (
+    create_new_session,
+    get_current_token_for_user,
+    get_progress,
+    is_token_in_use,
+    is_user_logged_in,
+    mark_progress,
+    validate_login,
+    was_token_used_before,
+)
+from src.services.task_tester_service import run_test
 from src.utils import bot_commands
 from src.utils.exceptions import (
     AdminAccessDenied,
-    AlreadyUsedToken,
+    AlreadyLoggedInAccount,
     InvalidDateError,
     InvalidSessionToken,
+    NoActiveSessionError,
     NoArgumentsInLogin,
+    PepTestError,
+    TokenAlreadyInUseError,
+    TokenNotFoundError,
     TooManyArgumentsInLogin,
-    WrongDateFormatError, AlreadyLoggedInAccount, LogoutError, WrongPythonFileName,
+    WrongAnswerError,
+    WrongDateFormatError,
+    WrongPythonFileName,
 )
-from src.utils.formaters import format_dict_to_string
-from src.utils.validators import validate_args, validate_datetime_args, validate_filename
+from src.utils.formaters import format_dict_to_string, format_progress_to_str
+from src.utils.validators import validate_datetime_args, validate_filename
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
@@ -41,9 +58,12 @@ ADMIN_USERNAMES = os.environ.get(_ADMIN_USERNAMES).split(" ")
 def get_handlers() -> list:
     return [
         CommandHandler(bot_commands.LOGIN, login),
+        CommandHandler(bot_commands.LOGIN_STATUS, login_status),
+        CommandHandler(bot_commands.PROGRESS, progress),
         CommandHandler(bot_commands.LOGOUT, logout),
-        MessageHandler(filters.Document.PY, py_downloader),
-        MessageHandler(filters.Document.TXT, downloader),
+        MessageHandler(filters.Document.PY, py_file_handler),
+        MessageHandler(filters.Document.TXT, students_downloader),
+        CommandHandler(bot_commands.UPLOAD_STUDENT_PROGRESS, upload_student_progress),
     ]
 
 
@@ -60,24 +80,22 @@ def _response(text_func):
 async def login(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
     try:
         args = context.args
-        await validate_args(args)
-        token = args[0]
-        if await validate_token(token):
-            raise InvalidSessionToken
-        if await is_token_used(token):
-            raise AlreadyUsedToken
-        if await is_user_logged_in(update.effective_user.username):
-            raise AlreadyLoggedInAccount
-        session = await create_new_session(token, update.effective_user.username, update.effective_user.id)
-        await upload_session_to_db(session)
-        await mark_token_as_used(token, update.effective_user.username)
+        username = update.effective_user.username
+        tg_id = update.effective_user.id
+        token = await validate_login(username, args)
+        if await is_token_in_use(token):
+            raise TokenAlreadyInUseError
+        if await was_token_used_before(token):
+            await log_in_user(token, username, tg_id)
+        else:
+            await log_in_new_user(token, username, tg_id)
         return "👍 [Успешная авторизация] 👍"
     except TooManyArgumentsInLogin:
         return "[Ошибка авторизации]    Не был дан токен    Необходимо: /login <TOKEN>"
     except NoArgumentsInLogin:
         return "[Ошибка авторизации]    Не был дан токен    Необходимо: /login <TOKEN>"
-    except AlreadyUsedToken:
-        return "[Ошибка авторизации]    Был дан токен, который уже был использован"
+    except TokenAlreadyInUseError:
+        return "[Ошибка авторизации]    Был дан токен, под которым уже авторизованы"
     except InvalidSessionToken:
         return "[Ошибка авторизации]    Был дан несуществующий токен"
     except AlreadyLoggedInAccount:
@@ -85,21 +103,40 @@ async def login(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
 
 
 @_response
-async def logout(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
-    return "Ничего не произошло"
-    pass
-    # try:
-    #     if not await is_user_logged_in(update.effective_user.username):
-    #         raise LogoutError
-    #     await logout_user(update.effective_user.username)
-    #
-    #     return "👍 [Успешный выход] 👍"
-    # except LogoutError:
-    #     return "[Ошибка]    Для этой команды необходима авторизация"
+async def login_status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
+    username = update.effective_user.username
+    if await is_user_logged_in(username):
+        token = await get_current_token_for_user(username)
+        return f'[Статус]    Авторизован под "{token}"'
+    else:
+        return "[Статус]    Не авторизован"
 
 
 @_response
-async def downloader(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
+async def progress(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
+    try:
+        if not await is_user_logged_in(update.effective_user.username):
+            raise NoActiveSessionError
+        progress_dict = await get_progress(update.effective_user.username)
+        return "[Прогресс]\n" + await format_progress_to_str(progress_dict)
+    except NoActiveSessionError:
+        return "[Ошибка]    Необходима авторизация"
+
+
+@_response
+async def logout(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
+    try:
+        username = update.effective_user.username
+        await deactivate_session(username)
+        return "👍 [Успешный выход] 👍"
+    except NoActiveSessionError:
+        return "[Ошибка]    Для этой команды необходима авторизация"
+
+
+@_response
+async def students_downloader(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> str:
     try:
         if not await is_admin_request(update.effective_user.username, ADMIN_USERNAMES):
             raise AdminAccessDenied
@@ -119,27 +156,36 @@ async def downloader(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
     except WrongDateFormatError:
         return "[Ошибка]    Дата была дана в неверном формате   Необходимо: 01.01.2023"
     except InvalidDateError:
-        return f"[Ошибка]   Была неверно указана дата   \nУказанное число не может быть раньше чем " \
-               f"{datetime.datetime.now().date().strftime('%d.%m.%Y')}"
+        return (
+            f"[Ошибка]   Была неверно указана дата   \nУказанное число не может быть раньше чем "
+            f"{datetime.datetime.now().date().strftime('%d.%m.%Y')}"
+        )
 
 
 @_response
-async def py_downloader(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
+async def py_file_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
     try:
-        # проверка названия файла
-        print(update.message.document.file_name)
         await validate_filename(update.message.document.file_name)
-        file = await context.bot.get_file(update.message.document)
-        # получение токена юзера
-        # token = await get_current_token_for_user(update.effective_user.username)
-        # скачивание ру файла в директорию с токеном
-        # file_path = f"src/data/user_exercises{update.message.document.file_name}"
-        # await download_file(update, context, file_path)
+        token = await get_current_token_for_user(update.effective_user.username)
+        filepath = await download_file(
+            update, context, update.message.document.file_name, token
+        )
 
         # тестирование файла
-        # await file.download_to_drive(caption{token}")
-        return f"{update.message.document.file_name}"
+        result = await run_test(filepath, update.message.document.file_name)
+        await mark_progress(token, update.message.document.file_name)
+        return result + "Это корректный вывод, задача зачтена 👍"
     except WrongPythonFileName:
         return "[Ошибка отправки]    Неправильное имя файла    Необходимо: task1, или task2, или task3..."
     except TooManyArgumentsInLogin and NoArgumentsInLogin:
-        return "[Ошибка]    Был дан неверный заголовок      Необходимо: task1, или task2, или task3..."
+        return "[Ошибка отправки]    Был дан неверный заголовок      Необходимо: task1, или task2, или task3..."
+    except TokenNotFoundError:
+        return "[Ошибка]    Невозможно найти токен по вашему профилю"
+    except WrongAnswerError:
+        return "[Неверный ответ]    Программа выводит неверные данные"
+    except PepTestError:
+        return "[Неверный ответ]    Программа не прошла PEP8 валидацию"
+
+
+async def upload_student_progress(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    pass

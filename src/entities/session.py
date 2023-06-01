@@ -11,5 +11,3 @@ class Session:
         self.started_at = datetime.datetime.now().date()
         self.ends_at = user.deadline
         self.token = token
-
-

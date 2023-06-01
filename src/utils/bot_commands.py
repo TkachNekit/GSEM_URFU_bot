@@ -1,3 +1,6 @@
 START = "start"
 LOGIN = "login"
+LOGIN_STATUS = "login_status"
+PROGRESS = "progress"
 LOGOUT = "logout"
+UPLOAD_STUDENT_PROGRESS = "upload_student_progress"

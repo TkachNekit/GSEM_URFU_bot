@@ -10,7 +10,7 @@ class NoArgumentsInLogin(Exception):
     pass
 
 
-class AlreadyUsedToken(Exception):
+class TokenAlreadyInUseError(Exception):
     """Raised when user gives already used token"""
 
     pass
@@ -36,19 +36,41 @@ class WrongDateFormatError(Exception):
 
 class InvalidDateError(Exception):
     """Raised when user gives date which is not in the future"""
+
     pass
 
 
 class AlreadyLoggedInAccount(Exception):
     """Raised when user tries to log in few times"""
-    pass
 
-
-class LogoutError(Exception):
-    """Raised when user tries to log out when he is not logged in"""
     pass
 
 
 class WrongPythonFileName(Exception):
     """Raised when user gives a python file with a wrong name"""
+
+    pass
+
+
+class TokenNotFoundError(Exception):
+    """Raised when username was given which doesn't have any active tokens"""
+
+    pass
+
+
+class WrongAnswerError(Exception):
+    """Raised when user task failed test due to wrong answer"""
+
+    pass
+
+
+class PepTestError(Exception):
+    """Raised when user task failed test due to pep8 validation"""
+
+    pass
+
+
+class NoActiveSessionError(Exception):
+    """Raised when logged-out user tries to use command for logged-in users only"""
+
     pass
