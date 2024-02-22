@@ -12,17 +12,9 @@ async def run_test(filepath: str, py_filename: str) -> str:
     )
     string_result = result_in_bytes.decode("utf-8")
     correct_answer = await get_task_answer(py_filename)
-    print(
-        result_in_bytes,
-        string_result,
-        str(correct_answer),
-        string_result == correct_answer,
-    )
     if string_result != correct_answer:
-        raise WrongAnswerError  # можно добавить что было выведено и что должно было
+        raise WrongAnswerError
 
-    # if not is_pep8_valid(py_filename):
-    #     raise PepTestError
     return string_result
 
 
