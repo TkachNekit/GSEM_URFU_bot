@@ -173,7 +173,7 @@ async def py_file_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         )
         result = await run_test(filepath, update.message.document.file_name)
         await mark_progress(token, update.message.document.file_name)
-        return result + "Это корректный вывод, задача зачтена 👍"
+        return result + " | Это корректный вывод, задача зачтена 👍"
     except WrongPythonFileName:
         return "[Ошибка отправки]    Неправильное имя файла    Необходимо: task1, или task2, или task3..."
     except TooManyArgumentsInLogin and NoArgumentsInLogin:
