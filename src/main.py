@@ -2,16 +2,19 @@ import logging
 import os
 from dotenv import load_dotenv
 from telegram.error import InvalidToken
+from src.config.logger_config import configure_logging
 
 from src.bot import Bot
 
-logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.ERROR
-)
-logger = logging.getLogger(__name__)
+_TOKEN = "GSEM_BOT_TOKEN"
+_DEBUG = "DEBUG"
 
 load_dotenv()
-_TOKEN = "GSEM_BOT_TOKEN"
+
+if os.environ.get(_DEBUG).lower() == "true":
+    configure_logging(is_debug=True)
+else:
+    configure_logging(is_debug=False)
 
 
 def main(bot_token):
@@ -21,8 +24,8 @@ def main(bot_token):
 
 if __name__ == "__main__":
     try:
-        logger.info("Obtained token successfully")
         BOT_TOKEN = os.environ.get(_TOKEN)
+        logging.warning("Obtained token successfully")
         main(BOT_TOKEN)
     except InvalidToken:
-        logger.error("Error occurred while obtaining Bot token form environment")
+        logging.critical("Error occurred while obtaining Bot token from environment")

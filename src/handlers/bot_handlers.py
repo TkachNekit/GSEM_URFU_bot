@@ -1,6 +1,5 @@
 import datetime
 import functools
-import logging
 import os
 
 from telegram import Update
@@ -47,9 +46,6 @@ from src.utils.exceptions import (
 from src.utils.formaters import format_dict_to_string, format_progress_to_str
 from src.utils.validators import validate_datetime_args, validate_filename
 
-logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
-)
 
 _ADMIN_USERNAMES = "ADMIN_USERNAMES"
 STUDENT_FILE_NAME = "src/data/students.txt"
