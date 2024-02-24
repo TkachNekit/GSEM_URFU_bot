@@ -9,7 +9,8 @@ from telegram.ext import CommandHandler, ContextTypes, MessageHandler, filters
 from src.services import telegram_services
 from src.services.auth_services import (
     deactivate_session,
-    download_file,
+    download_py_file,
+    download_txt_file,
     generate_tokens_for_users,
     is_admin_request,
     log_in_new_user,
@@ -141,7 +142,7 @@ async def students_downloader(
         if not await is_admin_request(update.effective_user.username, ADMIN_USERNAMES):
             raise AdminAccessDenied
         date = await validate_datetime_args(update.message.caption)
-        await download_file(update, context, STUDENT_FILE_NAME)
+        await download_txt_file(update, context, STUDENT_FILE_NAME)
         token_dict = await generate_tokens_for_users(STUDENT_FILE_NAME, date)
         await upload_tokens_to_db(token_dict)
 
@@ -167,14 +168,12 @@ async def py_file_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     try:
         await validate_filename(update.message.document.file_name)
         token = await get_current_token_for_user(update.effective_user.username)
-        filepath = await download_file(
+        filepath = await download_py_file(
             update, context, update.message.document.file_name, token
         )
-
-        # тестирование файла
         result = await run_test(filepath, update.message.document.file_name)
         await mark_progress(token, update.message.document.file_name)
-        return result + "Это корректный вывод, задача зачтена 👍"
+        return result + " | Это корректный вывод, задача зачтена 👍"
     except WrongPythonFileName:
         return "[Ошибка отправки]    Неправильное имя файла    Необходимо: task1, или task2, или task3..."
     except TooManyArgumentsInLogin and NoArgumentsInLogin:
@@ -187,5 +186,6 @@ async def py_file_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         return "[Неверный ответ]    Программа не прошла PEP8 валидацию"
 
 
-async def upload_student_progress(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def upload_student_progress(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
+    """FOR ADMIN ONLY! Handler controls uploading students progress to google spreadsheets"""
     pass

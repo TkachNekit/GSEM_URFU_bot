@@ -59,8 +59,8 @@ async def create_directory(path) -> None:
     os.mkdir(path)
 
 
-async def download_file(
-    update: Update, context: ContextTypes.DEFAULT_TYPE, filename: str, token: str
+async def download_py_file(
+        update: Update, context: ContextTypes.DEFAULT_TYPE, filename: str, token: str
 ) -> str:
     path = TASK_FILEPATH
     file = await context.bot.get_file(update.message.document)
@@ -72,6 +72,11 @@ async def download_file(
         await create_file(path)
     await file.download_to_drive(path)
     return path
+
+
+async def download_txt_file(update: Update, context: ContextTypes.DEFAULT_TYPE, filename):
+    file = await context.bot.get_file(update.message.document)
+    await file.download_to_drive(filename)
 
 
 async def is_admin_request(username: str, admin_list: [str]) -> bool:

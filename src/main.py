@@ -1,6 +1,6 @@
 import logging
 import os
-
+from dotenv import load_dotenv
 from telegram.error import InvalidToken
 
 from src.bot import Bot
@@ -10,6 +10,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+load_dotenv()
 _TOKEN = "GSEM_BOT_TOKEN"
 
 

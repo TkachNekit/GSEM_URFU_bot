@@ -1,3 +1,5 @@
 .env
 .idea
 test_exercises
+spreadsheets_data
+src/data/
