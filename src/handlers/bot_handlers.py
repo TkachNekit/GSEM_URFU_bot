@@ -47,10 +47,6 @@ from src.utils.exceptions import (
 from src.utils.formaters import format_dict_to_string, format_progress_to_str
 from src.utils.validators import validate_datetime_args, validate_filename
 
-logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
-)
-
 _ADMIN_USERNAMES = "ADMIN_USERNAMES"
 STUDENT_FILE_NAME = "src/data/students.txt"
 ADMIN_USERNAMES = os.environ.get(_ADMIN_USERNAMES).split(" ")
@@ -89,17 +85,23 @@ async def login(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
         if await was_token_used_before(token):
             await log_in_user(token, username, tg_id)
         else:
+            logging.info(f"User \'{username}\' successfully authorized.")
             await log_in_new_user(token, username, tg_id)
         return "👍 [Успешная авторизация] 👍"
     except TooManyArgumentsInLogin:
+        logging.warning(f"User \'{username}\' unsuccessfully tried to authorize. Too many arguments were given.")
         return "[Ошибка авторизации]    Не был дан токен    Необходимо: /login <TOKEN>"
     except NoArgumentsInLogin:
+        logging.warning(f"User \'{username}\' unsuccessfully tried to authorize. No many arguments were given.")
         return "[Ошибка авторизации]    Не был дан токен    Необходимо: /login <TOKEN>"
     except TokenAlreadyInUseError:
+        logging.warning(f"User \'{username}\' unsuccessfully tried to authorize. Token is already in use.")
         return "[Ошибка авторизации]    Был дан токен, под которым уже авторизованы"
     except InvalidSessionToken:
+        logging.warning(f"User \'{username}\' unsuccessfully tried to authorize. Invalid token were given.")
         return "[Ошибка авторизации]    Был дан несуществующий токен"
     except AlreadyLoggedInAccount:
+        logging.warning(f"User \'{username}\' unsuccessfully tried to authorize. User already logged in.")
         return "[Ошибка авторизации]    Пользователь уже авторизован с этого аккаунта"
 
 
@@ -108,38 +110,46 @@ async def login_status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> st
     username = update.effective_user.username
     if await is_user_logged_in(username):
         token = await get_current_token_for_user(username)
+        logging.info(f"User \'{username}\' successfully requested login status.")
         return f'[Статус]    Авторизован под "{token}"'
     else:
+        logging.warning(f"User \'{username}\' unsuccessfully requested login status. User is not authorized.")
         return "[Статус]    Не авторизован"
 
 
 @_response
 async def progress(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
+    username = update.effective_user.username
     try:
-        if not await is_user_logged_in(update.effective_user.username):
+        if not await is_user_logged_in(username):
             raise NoActiveSessionError
-        progress_dict = await get_progress(update.effective_user.username)
+        progress_dict = await get_progress(username)
+        logging.info(f"User \'{username}\' successfully requested his progress on tasks.")
         return "[Прогресс]\n" + await format_progress_to_str(progress_dict)
     except NoActiveSessionError:
+        logging.warning(f"User \'{username}\' unsuccessfully requested his progress on tasks. User is not authorized.")
         return "[Ошибка]    Необходима авторизация"
 
 
 @_response
 async def logout(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
+    username = update.effective_user.username
     try:
-        username = update.effective_user.username
         await deactivate_session(username)
+        logging.info(f"User \'{username}\' successfully logged out.")
         return "👍 [Успешный выход] 👍"
     except NoActiveSessionError:
+        logging.warning(f"User \'{username}\' unsuccessfully tried to log out. User is not authorized.")
         return "[Ошибка]    Для этой команды необходима авторизация"
 
 
 @_response
 async def students_downloader(
-    update: Update, context: ContextTypes.DEFAULT_TYPE
+        update: Update, context: ContextTypes.DEFAULT_TYPE
 ) -> str:
+    username = update.effective_user.username
     try:
-        if not await is_admin_request(update.effective_user.username, ADMIN_USERNAMES):
+        if not await is_admin_request(username, ADMIN_USERNAMES):
             raise AdminAccessDenied
         date = await validate_datetime_args(update.message.caption)
         await download_txt_file(update, context, STUDENT_FILE_NAME)
@@ -149,14 +159,19 @@ async def students_downloader(
         output = "👍 [Успешное создание токенов] 👍\n\n\n" + await format_dict_to_string(
             token_dict
         )
+        logging.warning(f"User \'{username}\' successfully uploaded users' list.")
         return output
     except AdminAccessDenied:
+        logging.warning(f"User \'{username}\' unsuccessfully tried to uploaded users' list. User doesn't have admin status")
         return "[Ошибка]    Нет доступа к загрузке файлов с данного аккаунта"
     except TooManyArgumentsInLogin and NoArgumentsInLogin:
+        logging.warning(f"User \'{username}\' unsuccessfully tried to uploaded users' list. Wrong arguments.")
         return "[Ошибка]    Дата окончания действия токенов была указана неверно    Необходимо: 01.01.2023"
     except WrongDateFormatError:
+        logging.warning(f"User \'{username}\' unsuccessfully tried to uploaded users' list. Wrong date format.")
         return "[Ошибка]    Дата была дана в неверном формате   Необходимо: 01.01.2023"
     except InvalidDateError:
+        logging.warning(f"User \'{username}\' unsuccessfully tried to uploaded users' list. Wrong date.")
         return (
             f"[Ошибка]   Была неверно указана дата   \nУказанное число не может быть раньше чем "
             f"{datetime.datetime.now().date().strftime('%d.%m.%Y')}"
@@ -165,9 +180,12 @@ async def students_downloader(
 
 @_response
 async def py_file_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
+    username = update.effective_user.username
     try:
-        await validate_filename(update.message.document.file_name)
-        token = await get_current_token_for_user(update.effective_user.username)
+        received_file_name = update.message.document.file_name
+        await validate_filename(received_file_name)
+        token = await get_current_token_for_user(username)
+        # new_file_name = await get_new_file_name(received_file_name)
         filepath = await download_py_file(
             update, context, update.message.document.file_name, token
         )
