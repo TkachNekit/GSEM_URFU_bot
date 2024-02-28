@@ -1,5 +1,4 @@
 import logging
-import os
 
 
 def configure_logging(is_debug: bool):
@@ -12,7 +11,7 @@ def configure_logging(is_debug: bool):
     )
 
     # Create a file handler for error logging
-    error_handler = logging.FileHandler('../../std.log', mode='w')
+    error_handler = logging.FileHandler('C:\\Users\\nikit\PycharmProjects\GSEM_URFU_bot\std.log', mode='w')
     error_handler.setLevel(logging.WARNING)
     error_format = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
     error_handler.setFormatter(error_format)
