@@ -60,6 +60,9 @@ class TokenNotFoundError(Exception):
 
 class WrongAnswerError(Exception):
     """Raised when user task failed test due to wrong answer"""
+    def __init__(self, correct_result, user_result):
+        self.correct_result = correct_result
+        self.user_result = user_result
 
     pass
 

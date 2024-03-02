@@ -13,7 +13,7 @@ async def run_test(filepath: str, py_filename: str) -> str:
     string_result = result_in_bytes.decode("utf-8")
     correct_answer = await get_task_answer(py_filename)
     if string_result != correct_answer:
-        raise WrongAnswerError
+        raise WrongAnswerError(correct_answer, string_result)
 
     return string_result
 

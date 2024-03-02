@@ -12,7 +12,7 @@ from src.services.session_services import (
     get_current_token_for_user,
     is_user_logged_in,
     mark_token_as_used,
-    upload_session_to_db,
+    upload_session_to_db, get_user_from_token,
 )
 from src.utils.exceptions import NoActiveSessionError, TokenNotFoundError
 from src.utils.namings import SESSION_FILE, TASK_FILEPATH, TOKEN_FILE
@@ -60,18 +60,25 @@ async def create_directory(path) -> None:
 
 
 async def download_py_file(
-        update: Update, context: ContextTypes.DEFAULT_TYPE, filename: str, token: str
+        update: Update, context: ContextTypes.DEFAULT_TYPE, new_file_name: str, token: str
 ) -> str:
     path = TASK_FILEPATH
     file = await context.bot.get_file(update.message.document)
     path += token + "/"
     if not os.path.isdir(path):
         await create_directory(path)
-    path += filename
+    path += new_file_name
     if not os.path.isfile(path):
         await create_file(path)
     await file.download_to_drive(path)
     return path
+
+
+async def get_new_file_name(received_file_name: str, token: str) -> str:
+    user = await get_user_from_token(token)
+    group = "_".join(user.group.split('-'))
+    new_file_name = f"{user.last_name}_{user.first_name}_{group}_{received_file_name}"
+    return new_file_name
 
 
 async def download_txt_file(update: Update, context: ContextTypes.DEFAULT_TYPE, filename):

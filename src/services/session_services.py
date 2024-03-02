@@ -51,15 +51,15 @@ async def validate_login(username: str, args: list) -> str:
         raise AlreadyLoggedInAccount
     await validate_token_args(args)
     token = args[0]
-    if await validate_token(token):
+    if not await is_token_valid(token):
         raise InvalidSessionToken
     return token
 
 
-async def validate_token(token: str) -> bool:
+async def is_token_valid(token: str) -> bool:
     with open(TOKEN_FILE, "r", encoding="utf-8") as token_file:
         data = json.load(token_file)
-        return not (token in data.keys())
+        return token in data.keys()
 
 
 async def upload_session_to_db(session: Session) -> None:
