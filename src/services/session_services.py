@@ -1,4 +1,5 @@
 import json
+import logging
 from datetime import datetime
 
 from src.entities.session import Session
@@ -9,8 +10,24 @@ from src.utils.validators import validate_token_args
 
 
 async def create_new_session(token: str, username: str, id: int) -> Session:
-    user = await get_user_from_token(token)
-    return Session(token, id, username, user)
+    try:
+        user = await get_user_from_token(token)
+        return Session(token, id, username, user)
+
+    except FileNotFoundError:
+        # Обработка ошибки, если файл не найден
+        raise FileNotFoundError(
+            f'Couldn\'t get user from token "{token}". Token-file "{TOKEN_FILE}" not found'
+        )
+
+    except json.JSONDecodeError:
+        # Обработка ошибки декодирования JSON
+        raise ValueError(
+            f'Couldn\'t get user from token "{token}". Couldn\'t decode token-file "{TOKEN_FILE}" as JSON'
+        )
+
+    except KeyError:
+        raise InvalidSessionToken
 
 
 async def get_user_from_token(token: str) -> User:
@@ -24,16 +41,42 @@ async def get_user_from_token(token: str) -> User:
                 token_data["group"],
                 datetime.strptime(token_data["deadline"], "%Y-%m-%d"),
             )
+
+    except FileNotFoundError:
+        # Обработка ошибки, если файл не найден
+        raise FileNotFoundError(
+            f'Couldn\'t get user from token "{token}". Token-file "{TOKEN_FILE}" not found'
+        )
+
+    except json.JSONDecodeError:
+        # Обработка ошибки декодирования JSON
+        raise ValueError(
+            f'Couldn\'t get user from token "{token}". Couldn\'t decode token-file "{TOKEN_FILE}" as JSON'
+        )
+
     except KeyError:
         raise InvalidSessionToken
 
 
 async def is_token_in_use(token: str) -> bool:
-    with open(TOKEN_FILE, "r", encoding="utf-8") as token_file:
-        data = json.load(token_file)
-        if data[token]["is_in_use"]:
-            return True
-    return False
+    try:
+        with open(TOKEN_FILE, "r", encoding="utf-8") as token_file:
+            data = json.load(token_file)
+            if data[token]["is_in_use"]:
+                return True
+        return False
+    except FileNotFoundError:
+        # Обработка ошибки, если файл не найден
+        logging.error(
+            f'Couldn\'t check if token "{token}" is in use. Couldn\'t find token-file on path "{TOKEN_FILE}"'
+        )
+        return False
+    except json.JSONDecodeError:
+        # Обработка ошибки декодирования JSON
+        logging.error(
+            f'Couldn\'t check if token "{token}" is in use. Couldn\'t decode token-file "{TOKEN_FILE}" as JSON'
+        )
+        return False
 
 
 async def was_token_used_before(token: str) -> bool:
@@ -113,8 +156,8 @@ async def is_user_logged_in(username: str) -> bool:
         for session in session_list:
             token = list(session.keys())[0]
             if (
-                    session[token]["telegram_username"] == username
-                    and session[token]["is_in_progress"] is True
+                session[token]["telegram_username"] == username
+                and session[token]["is_in_progress"] is True
             ):
                 return True
     return False
@@ -144,8 +187,8 @@ async def get_current_token_for_user(username: str) -> str:
         for session in data["sessions"]:
             token = list(session.keys())[0]
             if (
-                    session[token]["telegram_username"] == username
-                    and session[token]["is_in_progress"]
+                session[token]["telegram_username"] == username
+                and session[token]["is_in_progress"]
             ):
                 output_token = token
     if not output_token:
@@ -180,10 +223,3 @@ async def activate_session(token: str, username: str, telegram_id: int) -> None:
             ensure_ascii=False,
             separators=(",", ": "),
         )
-
-# async def get_user_session(last_name: str, first_name: str) -> list:
-#     with open(SESSION_FILE, "r", encoding="utf-8") as session_file:
-#         data = json.load(session_file)
-#         for session in data["sessions"]:
-#             token = list(session.keys())[0]
-#             if

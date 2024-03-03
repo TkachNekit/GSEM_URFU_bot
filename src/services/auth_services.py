@@ -1,7 +1,7 @@
 import json
-import os
 import uuid
 from datetime import datetime
+from pathlib import Path
 
 from telegram import Update
 from telegram.ext import ContextTypes
@@ -10,11 +10,12 @@ from src.services.session_services import (
     activate_session,
     create_new_session,
     get_current_token_for_user,
+    get_user_from_token,
     is_user_logged_in,
     mark_token_as_used,
-    upload_session_to_db, get_user_from_token,
+    upload_session_to_db,
 )
-from src.utils.exceptions import NoActiveSessionError, TokenNotFoundError
+from src.utils.exceptions import NoActiveSessionError
 from src.utils.namings import SESSION_FILE, TASK_FILEPATH, TOKEN_FILE
 
 
@@ -50,38 +51,30 @@ async def upload_tokens_to_db(token_dict: dict) -> None:
         )
 
 
-async def create_file(filename) -> None:
-    with open(filename, "x") as f:
-        f.write("")
-
-
-async def create_directory(path) -> None:
-    os.mkdir(path)
-
-
 async def download_py_file(
-        update: Update, context: ContextTypes.DEFAULT_TYPE, new_file_name: str, token: str
+    update: Update, context: ContextTypes.DEFAULT_TYPE, new_file_name: str, token: str
 ) -> str:
-    path = TASK_FILEPATH
+    path = Path(TASK_FILEPATH)
     file = await context.bot.get_file(update.message.document)
-    path += token + "/"
-    if not os.path.isdir(path):
-        await create_directory(path)
-    path += new_file_name
-    if not os.path.isfile(path):
-        await create_file(path)
-    await file.download_to_drive(path)
-    return path
+    path /= token
+    path.mkdir(parents=True, exist_ok=True)
+    path /= new_file_name
+    if not path.is_file():
+        path.touch()
+    await file.download_to_drive(str(path))
+    return str(path)
 
 
 async def get_new_file_name(received_file_name: str, token: str) -> str:
     user = await get_user_from_token(token)
-    group = "_".join(user.group.split('-'))
+    group = "_".join(user.group.split("-"))
     new_file_name = f"{user.last_name}_{user.first_name}_{group}_{received_file_name}"
     return new_file_name
 
 
-async def download_txt_file(update: Update, context: ContextTypes.DEFAULT_TYPE, filename):
+async def download_txt_file(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, filename
+) -> None:
     file = await context.bot.get_file(update.message.document)
     await file.download_to_drive(filename)
 
@@ -125,12 +118,12 @@ async def deactivate_session(username: str) -> None:
         )
 
 
-async def log_in_new_user(token: str, username: str, tg_id: int):
+async def log_in_new_user(token: str, username: str, tg_id: int) -> None:
     session = await create_new_session(token, username, tg_id)
     await upload_session_to_db(session)
     await mark_token_as_used(token, username)
 
 
-async def log_in_user(token: str, username: str, tg_id: int):
+async def log_in_user(token: str, username: str, tg_id: int) -> None:
     await mark_token_as_used(token, username)
     await activate_session(token, username, tg_id)
