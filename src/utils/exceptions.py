@@ -61,13 +61,16 @@ class TokenNotFoundError(Exception):
 class WrongAnswerError(Exception):
     """Raised when user task failed test due to wrong answer"""
 
-    pass
+    def __init__(self, correct_result, user_result):
+        self.correct_result = correct_result
+        self.user_result = user_result
 
 
 class PepTestError(Exception):
     """Raised when user task failed test due to pep8 validation"""
 
-    pass
+    def __init__(self, violation_list: list):
+        self.violation_list = violation_list
 
 
 class NoActiveSessionError(Exception):

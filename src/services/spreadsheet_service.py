@@ -7,8 +7,12 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
-CREDENTIALS_PATH = "C:\\Users\\nikit\PycharmProjects\GSEM_URFU_bot\spreadsheets_data\credentials.json"
-TOKEN_PATH = "C:\\Users\\nikit\PycharmProjects\GSEM_URFU_bot\spreadsheets_data\\token.json"
+CREDENTIALS_PATH = (
+    "C:\\Users\\nikit\PycharmProjects\GSEM_URFU_bot\spreadsheets_data\credentials.json"
+)
+TOKEN_PATH = (
+    "C:\\Users\\nikit\PycharmProjects\GSEM_URFU_bot\spreadsheets_data\\token.json"
+)
 SPREADSHEET_ID = "1mSuIvEQ7fKUa2u918MGhKLhrt-SRAOTuOnlQqZRkgM0"
 
 # async def main():
