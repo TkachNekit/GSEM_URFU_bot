@@ -29,6 +29,7 @@ from src.services.session_services import (
     validate_login,
     was_token_used_before,
 )
+from src.services.spreadsheet_service import fulfill_worksheets
 from src.services.task_tester_service import run_tests
 from src.utils import bot_commands
 from src.utils.exceptions import (
@@ -224,6 +225,7 @@ async def students_downloader(
 
         token_dict = await generate_tokens_for_users(STUDENT_FILE_NAME, date)
         await upload_tokens_to_db(token_dict)
+        await fulfill_worksheets(token_dict)
 
         output = "👍 [Успешное создание токенов] 👍\n\n\n" + await format_dict_to_string(
             token_dict
