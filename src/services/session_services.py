@@ -156,14 +156,14 @@ async def is_user_logged_in(username: str) -> bool:
         for session in session_list:
             token = list(session.keys())[0]
             if (
-                session[token]["telegram_username"] == username
-                and session[token]["is_in_progress"] is True
+                    session[token]["telegram_username"] == username
+                    and session[token]["is_in_progress"] is True
             ):
                 return True
     return False
 
 
-async def mark_progress(token: str, filename: str):
+async def mark_progress_in_db(token: str, filename: str) -> None:
     with open(SESSION_FILE, "r", encoding="utf-8") as session_file:
         data = json.load(session_file)
         for session in data["sessions"]:
@@ -187,8 +187,8 @@ async def get_current_token_for_user(username: str) -> str:
         for session in data["sessions"]:
             token = list(session.keys())[0]
             if (
-                session[token]["telegram_username"] == username
-                and session[token]["is_in_progress"]
+                    session[token]["telegram_username"] == username
+                    and session[token]["is_in_progress"]
             ):
                 output_token = token
     if not output_token:
@@ -223,3 +223,16 @@ async def activate_session(token: str, username: str, telegram_id: int) -> None:
             ensure_ascii=False,
             separators=(",", ": "),
         )
+
+
+async def is_task_done_already(token: str, file_name: str) -> bool:
+    with open(SESSION_FILE, "r", encoding="utf-8") as session_file:
+        data = json.load(session_file)
+        for session in data["sessions"]:
+            if token in session.keys():
+                progress = session[token]["progress"]
+                if file_name in progress.keys():
+                    return True
+                else:
+                    return False
+    raise NoActiveSessionError

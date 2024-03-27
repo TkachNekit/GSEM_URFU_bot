@@ -25,10 +25,11 @@ from src.services.session_services import (
     is_token_in_use,
     is_token_valid,
     is_user_logged_in,
-    mark_progress,
+    mark_progress_in_db,
     validate_login,
-    was_token_used_before,
+    was_token_used_before, is_task_done_already,
 )
+from src.services.spreadsheet_service import fulfill_worksheets, mark_progress_in_google
 from src.services.task_tester_service import run_tests
 from src.utils import bot_commands
 from src.utils.exceptions import (
@@ -44,7 +45,7 @@ from src.utils.exceptions import (
     TooManyArgumentsInLogin,
     WrongAnswerError,
     WrongDateFormatError,
-    WrongPythonFileName,
+    WrongPythonFileName, AlreadyDoneTask,
 )
 from src.utils.formaters import format_dict_to_string, format_progress_to_str
 from src.utils.validators import validate_datetime_args, validate_filename
@@ -224,6 +225,7 @@ async def students_downloader(
 
         token_dict = await generate_tokens_for_users(STUDENT_FILE_NAME, date)
         await upload_tokens_to_db(token_dict)
+        await fulfill_worksheets(token_dict)
 
         output = "👍 [Успешное создание токенов] 👍\n\n\n" + await format_dict_to_string(
             token_dict
@@ -281,6 +283,9 @@ async def py_file_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             f"File {received_file_name} from user {username} has a valid filename"
         )
 
+        if await is_task_done_already(token, received_file_name):
+            raise AlreadyDoneTask
+
         new_file_name = await get_new_file_name(received_file_name, token)
         filepath = await download_py_file(update, context, new_file_name, token)
         logging.warning(
@@ -292,7 +297,8 @@ async def py_file_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             f"User's {username} task {new_file_name} successfully passed tests"
         )
 
-        await mark_progress(token, received_file_name)
+        await mark_progress_in_db(token, received_file_name)
+        await mark_progress_in_google(token, received_file_name, is_answer_right=True, is_pep_valid=True)
         return result + "\nЭто корректный вывод, задача зачтена 👍"
 
     except Exception as e:
@@ -301,6 +307,9 @@ async def py_file_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 f"User's {username} file {received_file_name} returns wrong answer. "
                 f"Expected result \n {e.correct_result} but got \n {e.user_result}"
             )
+            token = await get_current_token_for_user(username)
+            await mark_progress_in_google(token, received_file_name, is_answer_right=False, is_pep_valid=False)
+
             msg = "[Неверный ответ]    Программа выводит неверный результат."
 
         elif isinstance(e, PepTestError):
@@ -308,6 +317,8 @@ async def py_file_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             logging.error(
                 f"User's {username} file {received_file_name} couldn't pass PEP tests. Violation list: {lst}"
             )
+            token = await get_current_token_for_user(username)
+            await mark_progress_in_google(token, received_file_name, is_answer_right=True, is_pep_valid=False)
 
             violation_list = "\n".join(e.violation_list)
             msg = f"[Неверный ответ]    Программа не прошла PEP8 валидацию.  Ошибки:\n\n {violation_list}"
@@ -327,6 +338,9 @@ async def py_file_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 "OSError was caught, most likely there is no empty space on disk"
             )
             msg = "[Ошибка на сервере]    Произошла непредвиденная ошибка. Сообщите преподавателю о ней."
+        elif isinstance(e, AlreadyDoneTask):
+            logging.error(f"Task already was passed by this user")
+            msg = "[Уже сдана задача]"
 
         elif e.returncode == 1:
             logging.error(

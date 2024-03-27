@@ -77,3 +77,7 @@ class NoActiveSessionError(Exception):
     """Raised when logged-out user tries to use command for logged-in users only"""
 
     pass
+
+
+class AlreadyDoneTask(Exception):
+    """Raised when user tries to pass already done task"""
