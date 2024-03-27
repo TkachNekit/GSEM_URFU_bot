@@ -1,16 +1,21 @@
 import gspread
-import asyncio, time
+from datetime import datetime
 from gspread import Spreadsheet
 from gspread.exceptions import APIError
+
+from src.services.session_services import get_user_from_token
 
 PATH = "C:\\Users\\nikit\PycharmProjects\GSEM_URFU_bot\spreadsheets_data\gsembotproject-f2e927905a89.json"
 SPREADSHEET_NAME = "Student-Progress"
 
 
-async def fulfill_worksheets(token_dict: dict) -> None:
+async def get_spreadsheet() -> Spreadsheet:
     gc = gspread.service_account(filename=PATH)
-    sh = gc.open(SPREADSHEET_NAME)  # долго работает, тормозит работу программы
+    return gc.open(SPREADSHEET_NAME)  # долго работает, тормозит работу программы
 
+
+async def fulfill_worksheets(token_dict: dict) -> None:
+    sh = await get_spreadsheet()
     await update_worksheets(token_dict, sh)
     await fulfill_cells(token_dict, sh)
 
@@ -72,9 +77,35 @@ async def get_students_by_groups(token_dict: dict) -> dict:
     return output_dic
 
 
+async def mark_progress_in_google(token: str, filename: str, is_answer_right: bool, is_pep_valid: bool) -> None:
+    try:
+        user = await get_user_from_token(token)
+        sh = await get_spreadsheet()
+        worksheet = sh.worksheet(user.group)
+        name_cell = worksheet.find(f"{user.last_name} {user.first_name}")
+        task_cell = worksheet.find(filename.split('.')[0])
+
+        # Get the current date and time
+        current_date_time = datetime.now()
+        # Format the current date in the "day.month.year" format
+        formatted_date = current_date_time.strftime("%d.%m.%Y")
+
+        if is_answer_right and is_pep_valid:
+            worksheet.update_cell(name_cell.row, task_cell.col, '\'+')
+            worksheet.update_cell(name_cell.row, task_cell.col + 1, formatted_date)
+            worksheet.update_cell(name_cell.row, task_cell.col + 2, "Answer: +\nPep: +")
+        elif is_answer_right and not is_pep_valid:
+            worksheet.update_cell(name_cell.row, task_cell.col, '-')
+            worksheet.update_cell(name_cell.row, task_cell.col + 1, formatted_date)
+            worksheet.update_cell(name_cell.row, task_cell.col + 2, "Answer: +\nPep: -")
+        elif not is_answer_right and not is_pep_valid:
+            worksheet.update_cell(name_cell.row, task_cell.col, '-')
+            worksheet.update_cell(name_cell.row, task_cell.col + 1, formatted_date)
+            worksheet.update_cell(name_cell.row, task_cell.col + 2, "Answer: -\nPep: -")
+
+    except APIError as e:
+        raise e
+
+
 async def get_groups(token_dict: dict) -> list:
     return list(set([v['group'] for v in token_dict.values()]))
-
-
-async def delay():
-    await asyncio.sleep(60)  # Замораживает выполнение программы на 60 секунд
